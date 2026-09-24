@@ -1,0 +1,25 @@
+:root {
+  font-family: system-ui, 'Malgun Gothic', sans-serif;
+  line-height: 1.5;
+  color: #1f2937;
+  background-color: #f9fafb;
+}
+
+body {
+  margin: 0;
+}
+
+.setup {
+  max-width: 480px;
+  margin: 120px auto;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.status.UP {
+  color: #15803d;
+}
+
+.status.DOWN {
+  color: #b91c1c;
+}

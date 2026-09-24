@@ -1,0 +1,19 @@
+# 환경 변수 (비밀값)
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Claude Code (로컬 전용)
+CLAUDE.md
+.claude/
