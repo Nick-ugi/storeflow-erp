@@ -6,7 +6,7 @@
 | 순서 | 문서 | 위치 | 상태 |
 |---|---|---|---|
 | ① | [요구사항 정의서](requirements/01-requirements.md) (기능 목록, 사용자 역할, 권한표, 업무 규칙) | `requirements/` | **확정 v1.0** |
-| ② | 화면 목록 | `requirements/` | 작성 예정 |
+| ② | [화면 목록](requirements/02-screens.md) (메뉴 구조, 화면 흐름, 요구사항 ↔ 화면 추적표) | `requirements/` | **확정 v1.0** |
 | ③ | 상세 기능 명세 | `requirements/` | 작성 예정 |
 | ④ | 테이블 정의서 (컬럼, PK/FK, Index, 제약조건) | `erd/` | 작성 예정 |
 | ⑤ | ERD | `erd/` | 작성 예정 |
