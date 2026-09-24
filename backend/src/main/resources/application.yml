@@ -12,8 +12,11 @@ spring:
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
+  type-handlers-package: com.storeflow.common.mybatis
   configuration:
     map-underscore-to-camel-case: true
+    # 같은 트랜잭션 안에서도 매 조회를 DB에서 다시 읽는다. (세션 캐시로 인한 오래된 재고 · 사용자 상태 조회 방지)
+    local-cache-scope: statement
 
 server:
   port: 8080
@@ -23,3 +26,9 @@ management:
     web:
       exposure:
         include: health
+
+storeflow:
+  jwt:
+    # 운영에서는 반드시 JWT_SECRET 환경변수로 32자 이상 지정한다. (없으면 기동 실패)
+    secret: ${JWT_SECRET}
+    expiration: 8h

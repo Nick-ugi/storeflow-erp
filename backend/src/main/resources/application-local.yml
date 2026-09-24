@@ -1,3 +1,8 @@
+storeflow:
+  jwt:
+    # 로컬 개발 · 테스트 전용 키
+    secret: local-development-only-jwt-secret-key
+
 # 로컬 개발용: 애플리케이션 로그 + MyBatis 실행 SQL을 DEBUG로 출력
 logging:
   level:

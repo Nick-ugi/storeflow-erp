@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.auth.mapper.AuthMapper">
+
+    <sql id="authUserColumns">
+        u.id,
+        u.username,
+        u.password,
+        u.name,
+        r.role_name AS role,
+        u.store_id,
+        s.store_name,
+        u.status
+    </sql>
+
+    <sql id="authUserFrom">
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        LEFT JOIN stores s ON s.id = u.store_id
+    </sql>
+
+    <select id="findByUsername" resultType="com.storeflow.auth.domain.AuthUser">
+        SELECT <include refid="authUserColumns"/>
+        <include refid="authUserFrom"/>
+        WHERE u.username = #{username}
+    </select>
+
+    <select id="findById" resultType="com.storeflow.auth.domain.AuthUser">
+        SELECT <include refid="authUserColumns"/>
+        <include refid="authUserFrom"/>
+        WHERE u.id = #{id}
+    </select>
+
+    <update id="updatePassword">
+        UPDATE users
+           SET password = #{password},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+</mapper>
