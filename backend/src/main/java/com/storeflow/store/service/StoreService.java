@@ -46,14 +46,12 @@ public class StoreService {
     /**
      * 판매 · 발주 등록, 사용자 소속 매장 지정처럼 사용 중인 매장만 허용하는 곳에서 사용한다. (BR-014)
      */
-    public void requireActive(Long storeId, String inactiveMessage) {
-        ActiveStatus status = storeMapper.findStatusById(storeId);
-        if (status == null) {
-            throw new BusinessException(ErrorCode.STORE_NOT_FOUND);
-        }
-        if (status != ActiveStatus.ACTIVE) {
+    public StoreDetailResponse requireActive(Long storeId, String inactiveMessage) {
+        StoreDetailResponse store = get(storeId);
+        if (store.getStatus() != ActiveStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.STORE_INACTIVE, inactiveMessage);
         }
+        return store;
     }
 
     /**

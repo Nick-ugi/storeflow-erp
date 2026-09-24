@@ -13,17 +13,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * 동시성 테스트 공통 설정. 여러 스레드가 각자 트랜잭션을 커밋해야 하므로 테스트 트랜잭션 롤백을 쓰지 않고,
+ * 실제 커밋 · 롤백을 검증하는 테스트(롤백, 동시성) 공통 설정.
+ * 서비스가 각자 트랜잭션을 커밋 · 롤백해야 하므로 테스트 트랜잭션을 쓰지 않고,
  * 테스트가 끝나면 초기 데이터(역할, 초기 ADMIN)만 남기고 정리한다.
  */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
-public abstract class ConcurrencyTestSupport {
+public abstract class RealTransactionTestSupport {
 
     @Autowired
     protected JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    protected PasswordEncoder passwordEncoder;
+
+    protected TestFixtures fixtures() {
+        return new TestFixtures(jdbcTemplate, passwordEncoder);
+    }
 
     /** 작업들을 동시에 출발시키고, 각 작업의 결과(성공 값 또는 발생한 예외)를 순서대로 돌려준다. */
     protected List<Object> runConcurrently(List<Callable<Object>> tasks) throws Exception {

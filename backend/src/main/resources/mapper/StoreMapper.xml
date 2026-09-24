@@ -39,10 +39,6 @@
          WHERE id = #{id}
     </select>
 
-    <select id="findStatusById" resultType="com.storeflow.common.code.ActiveStatus">
-        SELECT status FROM stores WHERE id = #{id}
-    </select>
-
     <select id="existsByStoreCode" resultType="boolean">
         SELECT EXISTS (SELECT 1 FROM stores WHERE store_code = #{storeCode})
     </select>

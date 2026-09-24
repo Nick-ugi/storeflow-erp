@@ -6,7 +6,7 @@ import com.storeflow.common.code.Role;
 import com.storeflow.common.exception.BusinessException;
 import com.storeflow.common.exception.ErrorCode;
 import com.storeflow.common.security.LoginUser;
-import com.storeflow.support.ConcurrencyTestSupport;
+import com.storeflow.support.RealTransactionTestSupport;
 import com.storeflow.user.dto.UserUpdateRequest;
 import com.storeflow.user.service.UserService;
 import java.util.List;
@@ -15,7 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.RepeatedTest;
 import org.springframework.beans.factory.annotation.Autowired;
 
-class LastAdminConcurrencyTest extends ConcurrencyTestSupport {
+class LastAdminConcurrencyTest extends RealTransactionTestSupport {
 
     @Autowired
     private UserService userService;

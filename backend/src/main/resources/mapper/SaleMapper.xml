@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.sales.mapper.SaleMapper">
+
+    <select id="insertSale" resultType="long">
+        INSERT INTO sales (sale_number, store_id, total_amount, status, sold_at, created_by)
+        VALUES (#{saleNumber}, #{storeId}, #{totalAmount}, 'COMPLETED', #{soldAt}, #{createdBy})
+        RETURNING id
+    </select>
+
+    <insert id="insertItems">
+        INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, total_price)
+        VALUES
+        <foreach collection="items" item="item" separator=",">
+            (#{saleId}, #{item.productId}, #{item.quantity}, #{item.unitPrice}, #{item.totalPrice})
+        </foreach>
+    </insert>
+
+    <sql id="saleCondition">
+        <where>
+            <if test="cond.storeId != null">
+                AND s.store_id = #{cond.storeId}
+            </if>
+            <if test="cond.saleNumber != null">
+                AND s.sale_number ILIKE '%' || #{cond.saleNumber} || '%'
+            </if>
+            <if test="cond.status != null">
+                AND s.status = #{cond.status}
+            </if>
+            <if test="cond.from != null">
+                AND s.sold_at &gt;= #{cond.from}
+            </if>
+            <if test="cond.to != null">
+                AND s.sold_at &lt; #{cond.to}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findSales" resultType="com.storeflow.sales.dto.SaleResponse">
+        SELECT s.id,
+               s.sale_number,
+               s.sold_at,
+               s.store_id,
+               st.store_name,
+               (SELECT count(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count,
+               s.total_amount,
+               s.status,
+               u.name AS created_by_name
+          FROM sales s
+          JOIN stores st ON st.id = s.store_id
+          JOIN users u ON u.id = s.created_by
+        <include refid="saleCondition"/>
+         ORDER BY s.sold_at DESC, s.id DESC
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countSales" resultType="long">
+        SELECT count(*)
+          FROM sales s
+        <include refid="saleCondition"/>
+    </select>
+
+    <select id="findById" resultType="com.storeflow.sales.dto.SaleDetailResponse">
+        SELECT s.id,
+               s.sale_number,
+               s.store_id,
+               st.store_name,
+               s.sold_at,
+               s.status,
+               s.total_amount,
+               cu.name AS created_by_name,
+               s.cancelled_at,
+               xu.name AS cancelled_by_name
+          FROM sales s
+          JOIN stores st ON st.id = s.store_id
+          JOIN users cu ON cu.id = s.created_by
+          LEFT JOIN users xu ON xu.id = s.cancelled_by
+         WHERE s.id = #{id}
+    </select>
+
+    <select id="findItems" resultType="com.storeflow.sales.dto.SaleItemResponse">
+        SELECT si.product_id,
+               p.product_code,
+               p.product_name,
+               si.quantity,
+               si.unit_price,
+               si.total_price
+          FROM sale_items si
+          JOIN products p ON p.id = si.product_id
+         WHERE si.sale_id = #{saleId}
+         ORDER BY si.id
+    </select>
+
+    <update id="cancel">
+        UPDATE sales
+           SET status = 'CANCELLED',
+               cancelled_at = #{cancelledAt},
+               cancelled_by = #{cancelledBy},
+               updated_at = now()
+         WHERE id = #{id}
+           AND status = 'COMPLETED'
+    </update>
+
+</mapper>

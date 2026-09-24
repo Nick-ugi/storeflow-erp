@@ -62,6 +62,13 @@
          WHERE p.id = #{id}
     </select>
 
+    <select id="findSnapshots" resultType="com.storeflow.product.domain.ProductSnapshot">
+        SELECT id, product_name, purchase_price, sale_price, status
+          FROM products
+         WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
     <select id="existsByProductCode" resultType="boolean">
         SELECT EXISTS (SELECT 1 FROM products WHERE product_code = #{productCode})
     </select>

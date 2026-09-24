@@ -1,11 +1,13 @@
 package com.storeflow.product.mapper;
 
 import com.storeflow.common.code.ActiveStatus;
+import com.storeflow.product.domain.ProductSnapshot;
 import com.storeflow.product.dto.ProductCreateRequest;
 import com.storeflow.product.dto.ProductDetailResponse;
 import com.storeflow.product.dto.ProductResponse;
 import com.storeflow.product.dto.ProductSearchRequest;
 import com.storeflow.product.dto.ProductUpdateRequest;
+import java.util.Collection;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -22,6 +24,8 @@ public interface ProductMapper {
     long countProducts(@Param("cond") ProductSearchRequest cond);
 
     ProductDetailResponse findById(Long id);
+
+    List<ProductSnapshot> findSnapshots(@Param("ids") Collection<Long> ids);
 
     boolean existsByProductCode(String productCode);
 

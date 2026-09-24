@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * API 통합 테스트 공통 설정. 테스트마다 트랜잭션을 롤백하므로 테스트 간 데이터가 섞이지 않는다.
+ * 서비스도 테스트 트랜잭션에 참여하므로, 실제 롤백 · 동시성을 검증하려면 RealTransactionTestSupport를 쓴다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,6 +37,10 @@ public abstract class IntegrationTestSupport {
 
     @Autowired
     protected PasswordEncoder passwordEncoder;
+
+    protected TestFixtures fixtures() {
+        return new TestFixtures(jdbcTemplate, passwordEncoder);
+    }
 
     protected String login(String username, String password) throws Exception {
         String body = mockMvc.perform(post("/api/v1/auth/login")
@@ -61,35 +66,25 @@ public abstract class IntegrationTestSupport {
         return login(username, "test1234");
     }
 
-    protected Long insertCategory(String categoryName) {
-        return jdbcTemplate.queryForObject(
-                "INSERT INTO categories (category_name) VALUES (?) RETURNING id", Long.class, categoryName);
+    protected Long insertStore(String storeCode, String storeName) {
+        return fixtures().insertStore(storeCode, storeName);
     }
 
-    /** 상품만 넣는다. (API 등록과 달리 재고 행은 만들지 않음) */
+    protected Long insertUser(String username, String rawPassword, Role role, Long storeId) {
+        return fixtures().insertUser(username, rawPassword, role, storeId);
+    }
+
+    protected Long insertCategory(String categoryName) {
+        return fixtures().insertCategory(categoryName);
+    }
+
     protected Long insertProduct(Long categoryId, String productCode, String productName, long purchasePrice, long salePrice) {
-        return jdbcTemplate.queryForObject("""
-                INSERT INTO products (category_id, product_code, product_name, purchase_price, sale_price)
-                VALUES (?, ?, ?, ?, ?) RETURNING id
-                """, Long.class, categoryId, productCode, productName, purchasePrice, salePrice);
+        return fixtures().insertProduct(categoryId, productCode, productName, purchasePrice, salePrice);
     }
 
     protected Long countStocks(Long storeId, Long productId) {
         return jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM stocks WHERE store_id = ? AND product_id = ?", Long.class, storeId, productId);
-    }
-
-    protected Long insertStore(String storeCode, String storeName) {
-        return jdbcTemplate.queryForObject(
-                "INSERT INTO stores (store_code, store_name) VALUES (?, ?) RETURNING id", Long.class, storeCode, storeName);
-    }
-
-    protected Long insertUser(String username, String rawPassword, Role role, Long storeId) {
-        return jdbcTemplate.queryForObject("""
-                INSERT INTO users (username, password, name, role_id, store_id)
-                VALUES (?, ?, ?, (SELECT id FROM roles WHERE role_name = ?), ?)
-                RETURNING id
-                """, Long.class, username, passwordEncoder.encode(rawPassword), username + " 이름", role.name(), storeId);
     }
 
     /** 문자열 키 · 값 쌍으로 간단한 JSON 객체를 만든다. */

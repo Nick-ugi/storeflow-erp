@@ -22,8 +22,6 @@ public interface StoreMapper {
 
     StoreDetailResponse findById(Long id);
 
-    ActiveStatus findStatusById(Long id);
-
     boolean existsByStoreCode(String storeCode);
 
     boolean existsByStoreName(@Param("storeName") String storeName, @Param("excludeId") Long excludeId);

@@ -7,6 +7,7 @@ import com.storeflow.common.exception.ErrorCode;
 import com.storeflow.common.response.PageResponse;
 import com.storeflow.common.response.StatusResponse;
 import com.storeflow.common.security.LoginUser;
+import com.storeflow.product.domain.ProductSnapshot;
 import com.storeflow.product.dto.ProductCreateRequest;
 import com.storeflow.product.dto.ProductDetailResponse;
 import com.storeflow.product.dto.ProductResponse;
@@ -14,7 +15,11 @@ import com.storeflow.product.dto.ProductSearchRequest;
 import com.storeflow.product.dto.ProductUpdateRequest;
 import com.storeflow.product.mapper.ProductMapper;
 import com.storeflow.stock.service.StockRowInitializer;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +48,27 @@ public class ProductService {
             throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
         }
         return product;
+    }
+
+    /**
+     * 판매 · 발주에 쓸 상품을 한 번에 읽는다. 없는 상품은 404, 사용 중지 상품은 409 (BR-023)
+     *
+     * @param action 오류 메시지의 동작 이름 ("판매", "발주")
+     */
+    public Map<Long, ProductSnapshot> requireAvailable(Collection<Long> productIds, String action) {
+        Map<Long, ProductSnapshot> products = productMapper.findSnapshots(productIds).stream()
+                .collect(Collectors.toMap(ProductSnapshot::getId, Function.identity()));
+        for (Long productId : productIds) {
+            ProductSnapshot product = products.get(productId);
+            if (product == null) {
+                throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+            }
+            if (product.getStatus() != ActiveStatus.ACTIVE) {
+                throw new BusinessException(ErrorCode.PRODUCT_NOT_AVAILABLE,
+                        "%s할 수 없는 상품이 포함되어 있습니다: %s".formatted(action, product.getProductName()));
+            }
+        }
+        return products;
     }
 
     /**

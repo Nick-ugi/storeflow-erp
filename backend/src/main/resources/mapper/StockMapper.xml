@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.stock.mapper.StockMapper">
+
+    <!-- ===== 재고 변경 공통 절차 (판매 · 재고 명세 1.3) ===== -->
+
+    <!--
+        ORDER BY 뒤의 FOR UPDATE는 정렬된 순서대로 행을 잠근다.
+        모든 트랜잭션이 같은 순서(상품 ID 오름차순)로 잠그므로 서로의 잠금을 기다리는 교착 상태가 생기지 않는다.
+        상품 행은 잠그지 않는다 (FOR UPDATE OF st).
+    -->
+    <select id="lockStocks" resultType="com.storeflow.stock.domain.LockedStock">
+        SELECT st.id AS stock_id,
+               st.product_id,
+               p.product_name,
+               st.quantity
+          FROM stocks st
+          JOIN products p ON p.id = st.product_id
+         WHERE st.store_id = #{storeId}
+           AND st.product_id IN
+        <foreach collection="productIds" item="productId" open="(" separator="," close=")">#{productId}</foreach>
+         ORDER BY st.product_id
+           FOR UPDATE OF st
+    </select>
+
+    <update id="updateQuantity">
+        UPDATE stocks
+           SET quantity = #{quantity},
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE id = #{stockId}
+    </update>
+
+    <insert id="insertHistory">
+        INSERT INTO stock_histories (store_id, product_id, type, quantity, before_quantity, after_quantity,
+                                     reference_type, reference_id, reason, created_by)
+        VALUES (#{storeId}, #{productId}, #{type}, #{quantity}, #{beforeQuantity}, #{afterQuantity},
+                #{referenceType}, #{referenceId}, #{reason}, #{createdBy})
+    </insert>
+
+    <!-- ===== 현재 재고 ===== -->
+
+    <sql id="stockColumns">
+        st.store_id,
+        s.store_name,
+        st.product_id,
+        p.product_code,
+        p.product_name,
+        c.category_name,
+        p.status AS product_status,
+        st.quantity,
+        st.safety_stock,
+        (p.status = 'ACTIVE' AND st.quantity &lt; st.safety_stock) AS shortage
+    </sql>
+
+    <sql id="stockFrom">
+          FROM stocks st
+          JOIN stores s ON s.id = st.store_id
+          JOIN products p ON p.id = st.product_id
+          JOIN categories c ON c.id = p.category_id
+    </sql>
+
+    <sql id="stockCondition">
+        <where>
+            <if test="storeId != null">
+                AND st.store_id = #{storeId}
+            </if>
+            <if test="cond.keyword != null">
+                AND (p.product_name ILIKE '%' || #{cond.keyword} || '%' OR p.product_code ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+            <if test="cond.categoryId != null">
+                AND p.category_id = #{cond.categoryId}
+            </if>
+            <if test="cond.shortageOnly">
+                AND p.status = 'ACTIVE' AND st.quantity &lt; st.safety_stock
+            </if>
+        </where>
+    </sql>
+
+    <select id="findStocks" resultType="com.storeflow.stock.dto.StockResponse">
+        SELECT <include refid="stockColumns"/>
+        <include refid="stockFrom"/>
+        <include refid="stockCondition"/>
+         ORDER BY s.store_name, p.product_code
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countStocks" resultType="long">
+        SELECT count(*)
+        <include refid="stockFrom"/>
+        <include refid="stockCondition"/>
+    </select>
+
+    <select id="findStock" resultType="com.storeflow.stock.dto.StockDetailResponse">
+        SELECT <include refid="stockColumns"/>
+        <include refid="stockFrom"/>
+         WHERE st.store_id = #{storeId}
+           AND st.product_id = #{productId}
+    </select>
+
+    <update id="updateSafetyStock">
+        UPDATE stocks
+           SET safety_stock = #{safetyStock},
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE store_id = #{storeId}
+           AND product_id = #{productId}
+    </update>
+
+    <!-- ===== 재고 이력 ===== -->
+
+    <sql id="historyFrom">
+          FROM stock_histories h
+          JOIN stores s ON s.id = h.store_id
+          JOIN products p ON p.id = h.product_id
+          JOIN users u ON u.id = h.created_by
+          LEFT JOIN sales sa ON h.reference_type = 'SALE' AND sa.id = h.reference_id
+          LEFT JOIN purchase_orders po ON h.reference_type = 'PURCHASE_ORDER' AND po.id = h.reference_id
+    </sql>
+
+    <sql id="historyCondition">
+        <where>
+            <if test="cond.storeId != null">
+                AND h.store_id = #{cond.storeId}
+            </if>
+            <if test="cond.productId != null">
+                AND h.product_id = #{cond.productId}
+            </if>
+            <if test="cond.keyword != null">
+                AND (p.product_name ILIKE '%' || #{cond.keyword} || '%' OR p.product_code ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+            <if test="cond.type != null">
+                AND h.type = #{cond.type}
+            </if>
+            <if test="cond.from != null">
+                AND h.created_at &gt;= #{cond.from}
+            </if>
+            <if test="cond.to != null">
+                AND h.created_at &lt; #{cond.to}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findHistories" resultType="com.storeflow.stock.dto.StockHistoryResponse">
+        SELECT h.id,
+               h.created_at,
+               h.store_id,
+               s.store_name,
+               h.product_id,
+               p.product_code,
+               p.product_name,
+               h.type,
+               h.quantity,
+               h.before_quantity,
+               h.after_quantity,
+               h.reference_type,
+               h.reference_id,
+               COALESCE(sa.sale_number, po.order_number) AS reference_number,
+               h.reason,
+               u.name AS created_by_name
+        <include refid="historyFrom"/>
+        <include refid="historyCondition"/>
+         ORDER BY h.created_at DESC, h.id DESC
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countHistories" resultType="long">
+        SELECT count(*)
+        <include refid="historyFrom"/>
+        <include refid="historyCondition"/>
+    </select>
+
+</mapper>
