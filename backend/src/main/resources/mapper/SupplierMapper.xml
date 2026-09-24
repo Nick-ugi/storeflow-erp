@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.supplier.mapper.SupplierMapper">
+
+    <sql id="searchCondition">
+        <where>
+            <if test="cond.keyword != null">
+                AND supplier_name ILIKE '%' || #{cond.keyword} || '%'
+            </if>
+            <if test="cond.status != null">
+                AND status = #{cond.status}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findSuppliers" resultType="com.storeflow.supplier.dto.SupplierResponse">
+        SELECT id, supplier_name, business_number, contact_name, phone, status
+          FROM suppliers
+        <include refid="searchCondition"/>
+         ORDER BY supplier_name, id
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countSuppliers" resultType="long">
+        SELECT count(*)
+          FROM suppliers
+        <include refid="searchCondition"/>
+    </select>
+
+    <select id="findOptions" resultType="com.storeflow.supplier.dto.SupplierOptionResponse">
+        SELECT id, supplier_name, status
+          FROM suppliers
+         ORDER BY supplier_name, id
+    </select>
+
+    <select id="findById" resultType="com.storeflow.supplier.dto.SupplierDetailResponse">
+        SELECT id, supplier_name, business_number, contact_name, phone, status, created_at, updated_at
+          FROM suppliers
+         WHERE id = #{id}
+    </select>
+
+    <select id="existsByBusinessNumber" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM suppliers
+             WHERE business_number = #{businessNumber}
+            <if test="excludeId != null">
+               AND id &lt;&gt; #{excludeId}
+            </if>
+        )
+    </select>
+
+    <select id="insert" resultType="long">
+        INSERT INTO suppliers (supplier_name, business_number, contact_name, phone)
+        VALUES (#{supplierName}, #{businessNumber}, #{contactName}, #{phone})
+        RETURNING id
+    </select>
+
+    <update id="update">
+        UPDATE suppliers
+           SET supplier_name = #{request.supplierName},
+               business_number = #{request.businessNumber},
+               contact_name = #{request.contactName},
+               phone = #{request.phone},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE suppliers
+           SET status = #{status},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+</mapper>

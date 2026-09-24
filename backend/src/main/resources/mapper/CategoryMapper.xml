@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.category.mapper.CategoryMapper">
+
+    <select id="findAll" resultType="com.storeflow.category.dto.CategoryResponse">
+        SELECT id, category_name, description
+          FROM categories
+         ORDER BY category_name
+    </select>
+
+    <select id="existsById" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM categories WHERE id = #{id})
+    </select>
+
+    <select id="existsByCategoryName" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM categories
+             WHERE category_name = #{categoryName}
+            <if test="excludeId != null">
+               AND id &lt;&gt; #{excludeId}
+            </if>
+        )
+    </select>
+
+    <select id="insert" resultType="long">
+        INSERT INTO categories (category_name, description)
+        VALUES (#{categoryName}, #{description})
+        RETURNING id
+    </select>
+
+    <update id="update">
+        UPDATE categories
+           SET category_name = #{request.categoryName},
+               description = #{request.description},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+</mapper>

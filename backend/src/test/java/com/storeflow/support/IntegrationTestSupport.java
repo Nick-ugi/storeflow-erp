@@ -50,6 +50,35 @@ public abstract class IntegrationTestSupport {
         return "Bearer " + token;
     }
 
+    protected String adminToken() throws Exception {
+        return login(ADMIN_USERNAME, ADMIN_PASSWORD);
+    }
+
+    /** 역할 · 소속 매장을 가진 테스트 사용자를 만들고 토큰을 발급받는다. */
+    protected String tokenFor(Role role, Long storeId) throws Exception {
+        String username = role.name().toLowerCase() + System.nanoTime() % 100_000_000;
+        insertUser(username, "test1234", role, storeId);
+        return login(username, "test1234");
+    }
+
+    protected Long insertCategory(String categoryName) {
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO categories (category_name) VALUES (?) RETURNING id", Long.class, categoryName);
+    }
+
+    /** 상품만 넣는다. (API 등록과 달리 재고 행은 만들지 않음) */
+    protected Long insertProduct(Long categoryId, String productCode, String productName, long purchasePrice, long salePrice) {
+        return jdbcTemplate.queryForObject("""
+                INSERT INTO products (category_id, product_code, product_name, purchase_price, sale_price)
+                VALUES (?, ?, ?, ?, ?) RETURNING id
+                """, Long.class, categoryId, productCode, productName, purchasePrice, salePrice);
+    }
+
+    protected Long countStocks(Long storeId, Long productId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM stocks WHERE store_id = ? AND product_id = ?", Long.class, storeId, productId);
+    }
+
     protected Long insertStore(String storeCode, String storeName) {
         return jdbcTemplate.queryForObject(
                 "INSERT INTO stores (store_code, store_name) VALUES (?, ?) RETURNING id", Long.class, storeCode, storeName);

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.store.mapper.StoreMapper">
+
+    <sql id="searchCondition">
+        <where>
+            <if test="cond.keyword != null">
+                AND (store_name ILIKE '%' || #{cond.keyword} || '%' OR store_code ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+            <if test="cond.status != null">
+                AND status = #{cond.status}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findStores" resultType="com.storeflow.store.dto.StoreResponse">
+        SELECT id, store_code, store_name, address, phone, status
+          FROM stores
+        <include refid="searchCondition"/>
+         ORDER BY store_code
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countStores" resultType="long">
+        SELECT count(*)
+          FROM stores
+        <include refid="searchCondition"/>
+    </select>
+
+    <select id="findOptions" resultType="com.storeflow.store.dto.StoreOptionResponse">
+        SELECT id, store_code, store_name, status
+          FROM stores
+         ORDER BY store_code
+    </select>
+
+    <select id="findById" resultType="com.storeflow.store.dto.StoreDetailResponse">
+        SELECT id, store_code, store_name, address, phone, status, created_at, updated_at
+          FROM stores
+         WHERE id = #{id}
+    </select>
+
+    <select id="findStatusById" resultType="com.storeflow.common.code.ActiveStatus">
+        SELECT status FROM stores WHERE id = #{id}
+    </select>
+
+    <select id="existsByStoreCode" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM stores WHERE store_code = #{storeCode})
+    </select>
+
+    <select id="existsByStoreName" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM stores
+             WHERE store_name = #{storeName}
+            <if test="excludeId != null">
+               AND id &lt;&gt; #{excludeId}
+            </if>
+        )
+    </select>
+
+    <!-- INSERT ... RETURNING 으로 생성된 ID를 바로 받는다 -->
+    <select id="insert" resultType="long">
+        INSERT INTO stores (store_code, store_name, address, phone)
+        VALUES (#{storeCode}, #{storeName}, #{address}, #{phone})
+        RETURNING id
+    </select>
+
+    <update id="update">
+        UPDATE stores
+           SET store_name = #{request.storeName},
+               address = #{request.address},
+               phone = #{request.phone},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE stores
+           SET status = #{status},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+</mapper>

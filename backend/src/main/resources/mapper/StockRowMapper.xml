@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.stock.mapper.StockRowMapper">
+
+    <!-- 매장 · 상품 등록 공통 잠금 (기준정보 명세 4장). 트랜잭션이 끝나면 자동으로 풀린다. 1001 = 재고 행 생성 잠금 키 -->
+    <select id="lockStockRowCreation" resultType="string">
+        SELECT pg_advisory_xact_lock(1001)::text
+    </select>
+
+    <!-- 새 매장: 모든 상품(사용 중지 포함)의 재고 행을 수량 0으로 생성 -->
+    <insert id="insertStocksForStore">
+        INSERT INTO stocks (store_id, product_id)
+        SELECT #{storeId}, p.id
+          FROM products p
+    </insert>
+
+    <!-- 새 상품: 모든 매장(사용 중지 포함)의 재고 행을 수량 0으로 생성 -->
+    <insert id="insertStocksForProduct">
+        INSERT INTO stocks (store_id, product_id)
+        SELECT s.id, #{productId}
+          FROM stores s
+    </insert>
+
+</mapper>

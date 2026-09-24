@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.product.mapper.ProductMapper">
+
+    <sql id="searchCondition">
+        <where>
+            <if test="cond.keyword != null">
+                AND (p.product_name ILIKE '%' || #{cond.keyword} || '%' OR p.product_code ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+            <if test="cond.categoryId != null">
+                AND p.category_id = #{cond.categoryId}
+            </if>
+            <if test="cond.status != null">
+                AND p.status = #{cond.status}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findProducts" resultType="com.storeflow.product.dto.ProductResponse">
+        SELECT p.id,
+               p.product_code,
+               p.product_name,
+               p.category_id,
+               c.category_name,
+               p.purchase_price,
+               p.sale_price,
+               <choose>
+                   <when test="stockStoreId != null">
+                       COALESCE((SELECT st.quantity FROM stocks st WHERE st.product_id = p.id AND st.store_id = #{stockStoreId}), 0)
+                   </when>
+                   <otherwise>
+                       COALESCE((SELECT sum(st.quantity) FROM stocks st WHERE st.product_id = p.id), 0)
+                   </otherwise>
+               </choose> AS stock_quantity,
+               p.status
+          FROM products p
+          JOIN categories c ON c.id = p.category_id
+        <include refid="searchCondition"/>
+         ORDER BY p.product_code
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countProducts" resultType="long">
+        SELECT count(*)
+          FROM products p
+        <include refid="searchCondition"/>
+    </select>
+
+    <select id="findById" resultType="com.storeflow.product.dto.ProductDetailResponse">
+        SELECT p.id,
+               p.product_code,
+               p.product_name,
+               p.category_id,
+               c.category_name,
+               p.purchase_price,
+               p.sale_price,
+               p.status,
+               p.created_at,
+               p.updated_at
+          FROM products p
+          JOIN categories c ON c.id = p.category_id
+         WHERE p.id = #{id}
+    </select>
+
+    <select id="existsByProductCode" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM products WHERE product_code = #{productCode})
+    </select>
+
+    <select id="insert" resultType="long">
+        INSERT INTO products (category_id, product_code, product_name, purchase_price, sale_price)
+        VALUES (#{categoryId}, #{productCode}, #{productName}, #{purchasePrice}, #{salePrice})
+        RETURNING id
+    </select>
+
+    <update id="update">
+        UPDATE products
+           SET product_name = #{request.productName},
+               category_id = #{request.categoryId},
+               purchase_price = #{request.purchasePrice},
+               sale_price = #{request.salePrice},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE products
+           SET status = #{status},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+</mapper>

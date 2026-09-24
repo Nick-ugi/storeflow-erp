@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.user.mapper.UserMapper">
+
+    <sql id="userColumns">
+        u.id,
+        u.username,
+        u.name,
+        r.role_name AS role,
+        u.store_id,
+        s.store_name,
+        u.status,
+        u.created_at
+    </sql>
+
+    <sql id="userFrom">
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        LEFT JOIN stores s ON s.id = u.store_id
+    </sql>
+
+    <sql id="searchCondition">
+        <where>
+            <if test="cond.keyword != null">
+                AND (u.name ILIKE '%' || #{cond.keyword} || '%' OR u.username ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+            <if test="cond.role != null">
+                AND r.role_name = #{cond.role}
+            </if>
+            <if test="cond.storeId != null">
+                AND u.store_id = #{cond.storeId}
+            </if>
+            <if test="cond.status != null">
+                AND u.status = #{cond.status}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findUsers" resultType="com.storeflow.user.dto.UserResponse">
+        SELECT <include refid="userColumns"/>
+        <include refid="userFrom"/>
+        <include refid="searchCondition"/>
+         ORDER BY u.username
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countUsers" resultType="long">
+        SELECT count(*)
+        <include refid="userFrom"/>
+        <include refid="searchCondition"/>
+    </select>
+
+    <select id="findById" resultType="com.storeflow.user.dto.UserDetailResponse">
+        SELECT <include refid="userColumns"/>, u.updated_at
+        <include refid="userFrom"/>
+         WHERE u.id = #{id}
+    </select>
+
+    <select id="existsByUsername" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM users WHERE username = #{username})
+    </select>
+
+    <select id="insert" resultType="long">
+        INSERT INTO users (username, password, name, role_id, store_id)
+        VALUES (#{request.username},
+                #{encodedPassword},
+                #{request.name},
+                (SELECT id FROM roles WHERE role_name = #{request.role}),
+                #{request.storeId})
+        RETURNING id
+    </select>
+
+    <update id="update">
+        UPDATE users
+           SET name = #{request.name},
+               role_id = (SELECT id FROM roles WHERE role_name = #{request.role}),
+               store_id = #{request.storeId},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE users
+           SET status = #{status},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE users
+           SET password = #{encodedPassword},
+               updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+    <select id="lockActiveAdminIds" resultType="long">
+        SELECT u.id
+          FROM users u
+          JOIN roles r ON r.id = u.role_id
+         WHERE r.role_name = 'ADMIN'
+           AND u.status = 'ACTIVE'
+         ORDER BY u.id
+           FOR UPDATE OF u
+    </select>
+
+</mapper>
