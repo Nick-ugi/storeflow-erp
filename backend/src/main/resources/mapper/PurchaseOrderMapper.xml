@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.purchase.mapper.PurchaseOrderMapper">
+
+    <select id="insertOrder" resultType="long">
+        INSERT INTO purchase_orders (order_number, store_id, supplier_id, status, total_amount, ordered_at, created_by)
+        VALUES (#{orderNumber}, #{storeId}, #{supplierId}, 'DRAFT', #{totalAmount}, #{orderedAt}, #{createdBy})
+        RETURNING id
+    </select>
+
+    <insert id="insertItems">
+        INSERT INTO purchase_order_items (purchase_order_id, product_id, quantity, unit_price, total_price)
+        VALUES
+        <foreach collection="items" item="item" separator=",">
+            (#{purchaseOrderId}, #{item.productId}, #{item.quantity}, #{item.unitPrice}, #{item.totalPrice})
+        </foreach>
+    </insert>
+
+    <delete id="deleteItems">
+        DELETE FROM purchase_order_items WHERE purchase_order_id = #{purchaseOrderId}
+    </delete>
+
+    <update id="updateOrder">
+        UPDATE purchase_orders
+           SET supplier_id = #{supplierId},
+               total_amount = #{totalAmount},
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE id = #{id}
+    </update>
+
+    <sql id="orderCondition">
+        <where>
+            <if test="cond.storeId != null">
+                AND po.store_id = #{cond.storeId}
+            </if>
+            <if test="cond.supplierId != null">
+                AND po.supplier_id = #{cond.supplierId}
+            </if>
+            <if test="cond.orderNumber != null">
+                AND po.order_number ILIKE '%' || #{cond.orderNumber} || '%'
+            </if>
+            <if test="cond.status != null">
+                AND po.status = #{cond.status}
+            </if>
+            <if test="cond.from != null">
+                AND po.ordered_at &gt;= #{cond.from}
+            </if>
+            <if test="cond.to != null">
+                AND po.ordered_at &lt; #{cond.to}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findOrders" resultType="com.storeflow.purchase.dto.PurchaseOrderResponse">
+        SELECT po.id,
+               po.order_number,
+               po.ordered_at,
+               po.store_id,
+               st.store_name,
+               po.supplier_id,
+               sp.supplier_name,
+               (SELECT count(*) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id) AS item_count,
+               po.total_amount,
+               po.status
+          FROM purchase_orders po
+          JOIN stores st ON st.id = po.store_id
+          JOIN suppliers sp ON sp.id = po.supplier_id
+        <include refid="orderCondition"/>
+         ORDER BY po.ordered_at DESC, po.id DESC
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countOrders" resultType="long">
+        SELECT count(*)
+          FROM purchase_orders po
+        <include refid="orderCondition"/>
+    </select>
+
+    <select id="findById" resultType="com.storeflow.purchase.dto.PurchaseOrderDetailResponse">
+        SELECT po.id,
+               po.order_number,
+               po.store_id,
+               st.store_name,
+               po.supplier_id,
+               sp.supplier_name,
+               po.status,
+               po.total_amount,
+               po.ordered_at,
+               cu.name AS created_by_name,
+               po.approved_at,
+               au.name AS approved_by_name,
+               po.completed_at,
+               ru.name AS completed_by_name,
+               po.cancelled_at,
+               xu.name AS cancelled_by_name,
+               po.updated_at,
+               uu.name AS updated_by_name
+          FROM purchase_orders po
+          JOIN stores st ON st.id = po.store_id
+          JOIN suppliers sp ON sp.id = po.supplier_id
+          JOIN users cu ON cu.id = po.created_by
+          LEFT JOIN users au ON au.id = po.approved_by
+          LEFT JOIN users ru ON ru.id = po.completed_by
+          LEFT JOIN users xu ON xu.id = po.cancelled_by
+          LEFT JOIN users uu ON uu.id = po.updated_by
+         WHERE po.id = #{id}
+    </select>
+
+    <select id="findItems" resultType="com.storeflow.purchase.dto.PurchaseOrderItemResponse">
+        SELECT poi.product_id,
+               p.product_code,
+               p.product_name,
+               poi.quantity,
+               poi.unit_price,
+               poi.total_price
+          FROM purchase_order_items poi
+          JOIN products p ON p.id = poi.product_id
+         WHERE poi.purchase_order_id = #{purchaseOrderId}
+         ORDER BY poi.id
+    </select>
+
+    <select id="lockById" resultType="com.storeflow.purchase.domain.LockedPurchaseOrder">
+        SELECT id, store_id, status
+          FROM purchase_orders
+         WHERE id = #{id}
+           FOR UPDATE
+    </select>
+
+    <update id="approve">
+        UPDATE purchase_orders
+           SET status = 'APPROVED', approved_at = #{at}, approved_by = #{by}, updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+    <update id="complete">
+        UPDATE purchase_orders
+           SET status = 'COMPLETED', completed_at = #{at}, completed_by = #{by}, updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+    <update id="cancel">
+        UPDATE purchase_orders
+           SET status = 'CANCELLED', cancelled_at = #{at}, cancelled_by = #{by}, updated_at = now()
+         WHERE id = #{id}
+    </update>
+
+</mapper>

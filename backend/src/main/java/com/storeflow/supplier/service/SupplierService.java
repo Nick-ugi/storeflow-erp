@@ -43,6 +43,15 @@ public class SupplierService {
         return supplier;
     }
 
+    /** 발주 등록 · 수정에서 사용 중인 공급처만 허용한다. (발주 명세 1.3) */
+    public SupplierDetailResponse requireAvailable(Long id) {
+        SupplierDetailResponse supplier = get(id);
+        if (supplier.getStatus() != ActiveStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.SUPPLIER_NOT_AVAILABLE);
+        }
+        return supplier;
+    }
+
     @Transactional
     public Long create(SupplierRequest request) {
         if (supplierMapper.existsByBusinessNumber(request.businessNumber(), null)) {

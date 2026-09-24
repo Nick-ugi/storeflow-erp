@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.storeflow.dashboard.mapper.DashboardMapper">
+
+    <!-- 매출은 '완료' 판매만, 판매일(sold_at) 기준으로 집계한다. 이전 날짜 판매가 오늘 취소되면 그 날짜 매출에서 빠진다. (BR-060, BR-061) -->
+    <select id="sumSales" resultType="com.storeflow.dashboard.dto.SalesSummary">
+        SELECT COALESCE(sum(total_amount), 0)::bigint AS amount,
+               count(*) AS count
+          FROM sales
+         WHERE status = 'COMPLETED'
+           AND sold_at &gt;= #{from}
+           AND sold_at &lt; #{to}
+        <if test="storeId != null">
+           AND store_id = #{storeId}
+        </if>
+    </select>
+
+    <!-- 판매가 없는 날도 0으로 나오도록 날짜 목록을 만들고 한국 날짜 기준으로 합친다. -->
+    <select id="dailySales" resultType="com.storeflow.dashboard.dto.DailySales">
+        SELECT d.day::date AS date,
+               COALESCE(sum(s.total_amount), 0)::bigint AS amount
+          FROM generate_series(#{startDate}::date, #{endDate}::date, interval '1 day') AS d(day)
+          LEFT JOIN sales s
+                 ON s.status = 'COMPLETED'
+                AND (s.sold_at AT TIME ZONE 'Asia/Seoul')::date = d.day::date
+            <if test="storeId != null">
+                AND s.store_id = #{storeId}
+            </if>
+         GROUP BY d.day
+         ORDER BY d.day
+    </select>
+
+    <select id="stockSummary" resultType="com.storeflow.dashboard.dto.StockSummary">
+        SELECT
+        <choose>
+            <when test="storeId != null">
+               (SELECT count(*) FROM stocks WHERE store_id = #{storeId} AND quantity &gt;= 1) AS in_stock_product_count,
+            </when>
+            <otherwise>
+               (SELECT count(*) FROM (SELECT product_id FROM stocks GROUP BY product_id HAVING sum(quantity) &gt;= 1) t) AS in_stock_product_count,
+            </otherwise>
+        </choose>
+               (SELECT count(*)
+                  FROM stocks st
+                  JOIN products p ON p.id = st.product_id
+                 WHERE p.status = 'ACTIVE'
+                   AND st.quantity &lt; st.safety_stock
+                <if test="storeId != null">
+                   AND st.store_id = #{storeId}
+                </if>
+               ) AS shortage_count
+    </select>
+
+    <select id="findShortageStocks" resultType="com.storeflow.dashboard.dto.ShortageStock">
+        SELECT st.store_id,
+               s.store_name,
+               st.product_id,
+               p.product_code,
+               p.product_name,
+               st.quantity,
+               st.safety_stock,
+               st.safety_stock - st.quantity AS shortage_quantity
+          FROM stocks st
+          JOIN stores s ON s.id = st.store_id
+          JOIN products p ON p.id = st.product_id
+         WHERE p.status = 'ACTIVE'
+           AND st.quantity &lt; st.safety_stock
+        <if test="storeId != null">
+           AND st.store_id = #{storeId}
+        </if>
+         ORDER BY shortage_quantity DESC, s.store_name, p.product_code
+         LIMIT #{limit}
+    </select>
+
+    <select id="findRecentSales" resultType="com.storeflow.dashboard.dto.RecentSale">
+        SELECT id, sale_number, sold_at, total_amount, status
+          FROM sales
+        <where>
+            <if test="storeId != null">store_id = #{storeId}</if>
+        </where>
+         ORDER BY sold_at DESC, id DESC
+         LIMIT #{limit}
+    </select>
+
+    <select id="findRecentPurchaseOrders" resultType="com.storeflow.dashboard.dto.RecentPurchaseOrder">
+        SELECT po.id, po.order_number, sp.supplier_name, po.ordered_at, po.status
+          FROM purchase_orders po
+          JOIN suppliers sp ON sp.id = po.supplier_id
+        <where>
+            <if test="storeId != null">po.store_id = #{storeId}</if>
+        </where>
+         ORDER BY po.ordered_at DESC, po.id DESC
+         LIMIT #{limit}
+    </select>
+
+</mapper>
