@@ -10,7 +10,7 @@
 | ③ | 상세 기능 명세 — [판매 · 재고](requirements/03-spec-sales-stock.md) / [발주](requirements/03-spec-purchase.md) / [기준정보](requirements/03-spec-master.md) / [인증 · 시스템 관리 · Dashboard](requirements/03-spec-system.md) | `requirements/` | **확정 v1.0** |
 | ④ | [테이블 정의서](erd/01-table-definition.md) (컬럼, PK/FK, Index, 제약조건) + [DDL](erd/schema.sql) | `erd/` | **확정 v1.0** |
 | ⑤ | [ERD](erd/02-erd.md) | `erd/` | **확정 v1.0** |
-| ⑥ | API 명세 (Request / Response) | `api/` | 작성 예정 |
+| ⑥ | API 명세 — [공통 규칙 · 오류 코드](api/01-api-common.md) / [API 목록](api/02-api-list.md) / 상세: [판매 · 재고](api/03-api-sales-stock.md), [발주](api/04-api-purchase.md), [기준정보](api/05-api-master.md), [인증 · 시스템 관리 · Dashboard](api/06-api-system.md) | `api/` | **확정 v1.0** |
 | ⑦ | [상태값 / 코드 정의서](erd/03-code-definition.md) | `erd/` | **확정 v1.0** |
 | - | 업무 Flow Chart (판매, 판매 취소, 발주 → 입고, 재고 조정) | `flow/` | 작성 예정 |
 | - | 시스템 아키텍처, Legacy → Modern 비교 | `architecture/` | 작성 예정 |
