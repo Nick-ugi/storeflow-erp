@@ -1,25 +1,14 @@
-:root {
-  font-family: system-ui, 'Malgun Gothic', sans-serif;
-  line-height: 1.5;
-  color: #1f2937;
-  background-color: #f9fafb;
-}
-
 body {
   margin: 0;
+  background: #f5f6f8;
 }
 
-.setup {
-  max-width: 480px;
-  margin: 120px auto;
-  padding: 0 16px;
-  text-align: center;
+/* 금액 · 수량 · 상품명이 두 줄로 꺾이지 않게 하고, 화면이 좁으면 표를 가로로 스크롤한다. */
+.ant-table-cell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.status.UP {
-  color: #15803d;
-}
-
-.status.DOWN {
-  color: #b91c1c;
+.ant-table-wrapper .ant-table-content {
+  overflow-x: auto;
 }

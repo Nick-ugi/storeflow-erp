@@ -28,9 +28,10 @@
 
 | 구분 | 기술 |
 |---|---|
-| Frontend | React 19, TypeScript 6, Vite 8 |
-| Backend | Java 21, Spring Boot 4.0, Spring Security, MyBatis |
+| Frontend | React 19, TypeScript 6, Vite 8, Ant Design 6, TanStack Query 5, React Router 8, zustand, Recharts |
+| Backend | Java 21, Spring Boot 4.0, Spring Security (JWT · OAuth2 Resource Server), MyBatis |
 | Database | PostgreSQL 17, Flyway |
+| Test | JUnit 5, MockMvc, Testcontainers (실제 PostgreSQL로 통합 · 동시성 테스트 90건) |
 | Infra | Docker, GitHub Actions |
 
 ## 7. ERD
@@ -123,7 +124,7 @@
 
 ## Getting Started (로컬 개발 환경)
 
-**필요 도구:** JDK 21, Node.js 20.19+ (또는 22.12+), Docker Desktop
+**필요 도구:** JDK 21, Node.js 22.22+, Docker Desktop
 
 ```bash
 # 1. DB 실행 (PostgreSQL 17)
@@ -139,7 +140,8 @@ npm install
 npm run dev
 ```
 
-브라우저에서 http://localhost:5173 접속 시 `Backend + DB: UP`이 표시되면 환경 구성 완료.
+브라우저에서 http://localhost:5173 접속 → 아래 초기 ADMIN 계정으로 로그인하면 Dashboard가 열린다.
+ADMIN으로 매장 · 상품 · 공급처 · 사용자(MANAGER · USER)를 등록하면 역할별 화면을 확인할 수 있다.
 DB 접속 정보는 [.env.example](.env.example) 참고.
 
 - **초기 ADMIN 계정**: 아이디 `admin` / 비밀번호 `admin1234` (첫 실행 시 Flyway가 생성, 로그인 후 변경 권장)
