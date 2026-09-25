@@ -1,0 +1,52 @@
+# StoreFlow Frontend — React 빌드 결과 제공 + /api 요청을 백엔드로 전달
+# 기동 시 nginx 이미지가 ${BACKEND_ADDR}, ${NGINX_LOCAL_RESOLVERS}를 환경변수 값으로 채운다.
+
+# 백엔드 컨테이너를 다시 만들어 IP가 바뀌어도 따라가도록 이름을 주기적으로 다시 조회한다.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+upstream storeflow_backend {
+    zone storeflow_backend 64k;
+    server ${BACKEND_ADDR} resolve;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    server_name _;
+    server_tokens off;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # API → 백엔드. 캐시 · 보안 헤더는 Spring Security가 붙이므로 여기서는 더하지 않는다.
+    # /actuator는 전달하지 않는다. (헬스체크는 컨테이너 내부에서만 사용)
+    location /api/ {
+        proxy_pass http://storeflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Vite 빌드 파일: 파일명에 내용 해시가 붙으므로 1년 캐시. 없는 파일은 index.html 대신 404
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+
+    # 화면 경로(/sales/12 등)는 파일이 없으므로 index.html → React Router가 화면을 고른다.
+    # index.html은 배포 후 새 빌드 파일을 바로 가리키도록 매번 확인(no-cache)한다.
+    location / {
+        try_files $uri /index.html;
+        add_header Cache-Control "no-cache";
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+}

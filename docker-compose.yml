@@ -1,5 +1,5 @@
 # 로컬 개발용 인프라 (PostgreSQL).
-# 백엔드 / 프론트엔드 / Nginx 컨테이너는 STEP 11(Docker)에서 추가한다.
+# 백엔드 · 프론트엔드(Nginx)까지 포함한 배포용 구성은 docker/docker-compose.yml
 name: storeflow
 
 services:

@@ -1,0 +1,7 @@
+# 빌드 컨텍스트(저장소 루트)에서 frontend 소스와 Nginx 설정만 보낸다.
+*
+!frontend/
+frontend/node_modules
+frontend/dist
+!docker/frontend/default.conf.template
+!docker/frontend/security-headers.conf

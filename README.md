@@ -32,7 +32,7 @@
 | Backend | Java 21, Spring Boot 4.0, Spring Security (JWT · OAuth2 Resource Server), MyBatis |
 | Database | PostgreSQL 17, Flyway |
 | Test | JUnit 5, MockMvc, Testcontainers (실제 PostgreSQL로 통합 · 동시성 테스트 90건) |
-| Infra | Docker, GitHub Actions |
+| Infra | Docker (멀티 스테이지 빌드), Docker Compose, Nginx, GitHub Actions |
 
 ## 7. ERD
 
@@ -90,7 +90,35 @@
 
 ## 12. Docker
 
-> 작성 예정
+배포용 구성은 [docker/](docker)에 있다. 외부에는 Nginx 포트 하나만 열고, DB · 백엔드는 compose 내부 네트워크에서만 접근한다.
+
+```
+브라우저 ──:80──▶ frontend (Nginx)
+                   ├─ /        React 빌드 결과 (화면 경로는 index.html → React Router)
+                   └─ /api/*  ──▶ backend (Spring Boot :8080) ──▶ db (PostgreSQL :5432, 볼륨 db-data)
+```
+
+| 이미지 | 빌드 단계 | 실행 단계 |
+|---|---|---|
+| `storeflow-backend` | JDK 21로 `bootJar` → Spring Boot 레이어별 추출 | JRE 21 (alpine), root가 아닌 사용자로 실행 |
+| `storeflow-frontend` | Node 24로 타입 체크 + Vite 빌드 | Nginx 1.30 (alpine) |
+
+- **비밀값은 환경변수로만** — `docker/.env`(Git 제외)에 `DB_PASSWORD` · `JWT_SECRET`이 없으면 compose가 실행을 거부한다. 컨테이너는 `prod` 프로필로 실행되어 개발용 JWT 키를 쓰지 않는다 (로컬 개발 서버에서 받은 토큰은 401)
+- **기동 순서** — DB healthcheck(`pg_isready`) → 백엔드 healthcheck(`/actuator/health`) → Nginx. 첫 기동 때 Flyway가 스키마와 초기 ADMIN을 만든다
+- **actuator 비공개** — Nginx는 `/api/`만 백엔드로 전달한다. 헬스체크는 컨테이너 안에서만 호출
+- **레이어 분리** — 의존성(36MB)과 애플리케이션 코드(약 200KB)를 다른 레이어로 복사해, 코드만 바뀌면 작은 레이어만 새로 받는다
+- **캐시** — 파일명에 해시가 붙은 `/assets/*`는 1년(immutable), `index.html`은 매번 확인(no-cache) → 재배포하면 바로 새 화면. 없는 빌드 파일은 index.html 대신 404
+- **보안 헤더** — CSP(`script-src 'self'`), `X-Frame-Options`, `nosniff`, `Referrer-Policy`. API 응답의 보안 헤더는 Spring Security가 붙이므로 Nginx에서 중복하지 않는다
+- **백엔드 재생성 대응** — Nginx upstream이 백엔드 이름을 주기적으로 다시 조회(`resolve`)해, 백엔드 컨테이너를 새로 만들어 IP가 바뀌어도 Nginx 재시작 없이 연결된다 (IP를 바꿔 확인)
+- **자원** — 백엔드 컨테이너 메모리 768MB 상한, JVM 힙은 그 75%. 컨테이너 로그는 10MB × 3개로 순환
+
+```bash
+cp docker/.env.example docker/.env                            # DB_PASSWORD, JWT_SECRET 입력
+docker compose -f docker/docker-compose.yml up -d --build     # http://localhost
+docker compose -f docker/docker-compose.yml logs -f backend
+docker compose -f docker/docker-compose.yml exec db psql -U storeflow   # DB 직접 확인
+docker compose -f docker/docker-compose.yml down              # 중지 (데이터 유지, -v를 붙이면 삭제)
+```
 
 ## 13. CI/CD
 
@@ -147,3 +175,4 @@ DB 접속 정보는 [.env.example](.env.example) 참고.
 - **초기 ADMIN 계정**: 아이디 `admin` / 비밀번호 `admin1234` (첫 실행 시 Flyway가 생성, 로그인 후 변경 권장)
 - **테스트**: `cd backend && ./gradlew test` — Testcontainers가 테스트용 PostgreSQL 컨테이너를 따로 띄우므로 Docker가 실행 중이어야 한다.
 - **운영 실행 시**: `JWT_SECRET` 환경변수(32자 이상)를 반드시 지정한다. 로컬 프로필(`local`)에서만 개발용 키를 사용한다.
+- **Docker로 전체 실행**: JDK · Node 없이 Docker만으로 DB · 백엔드 · Nginx를 함께 띄울 수 있다 → [12. Docker](#12-docker)
