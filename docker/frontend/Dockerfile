@@ -4,7 +4,8 @@
 #   docker compose -f docker/docker-compose.yml build frontend
 
 # ---- 1단계: 타입 체크 + 프로덕션 빌드 ----
-FROM node:24-alpine AS build
+# 빌드 결과(정적 파일)는 CPU 아키텍처와 무관하므로 빌드 머신 아키텍처에서 한 번만 만든다.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build
 WORKDIR /app
 
 COPY frontend/package.json frontend/package-lock.json ./

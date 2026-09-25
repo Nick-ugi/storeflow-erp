@@ -1,5 +1,7 @@
 # StoreFlow ERP
 
+[![CI](https://github.com/Nick-ugi/storeflow-erp/actions/workflows/ci.yml/badge.svg)](https://github.com/Nick-ugi/storeflow-erp/actions/workflows/ci.yml)
+
 판매·재고·발주 통합 관리 시스템 — *Legacy ERP → Modern Web Architecture*
 
 소규모 매장의 상품, 판매, 재고, 발주 및 입고 업무를 통합 관리하는 Web ERP 시스템
@@ -122,7 +124,28 @@ docker compose -f docker/docker-compose.yml down              # 중지 (데이�
 
 ## 13. CI/CD
 
-> 작성 예정
+GitHub Actions — [.github/workflows/ci.yml](.github/workflows/ci.yml). PR과 main push마다 실행한다.
+
+```mermaid
+flowchart LR
+    trigger["PR · main push"] --> backend["Backend<br/>./gradlew test<br/>(Testcontainers PostgreSQL 17)"]
+    trigger --> frontend["Frontend<br/>Prettier · oxlint<br/>타입 체크 · 빌드"]
+    backend --> docker["Docker 이미지 빌드<br/>backend · frontend<br/>amd64 · arm64"]
+    frontend --> docker
+    docker -->|main만| ghcr[("GHCR<br/>latest · sha-커밋")]
+```
+
+| 작업 | 내용 |
+|---|---|
+| Backend | 통합 · 동시성 테스트 전체를 실제 PostgreSQL 컨테이너로 실행. 실패하면 테스트 리포트를 아티팩트로 올린다 |
+| Frontend | 포맷 · lint(경고도 실패) · 타입 체크 · 빌드 |
+| Docker | 두 검사가 모두 통과해야 실행. main이면 `ghcr.io/nick-ugi/storeflow-{backend,frontend}`에 `latest` · `sha-<커밋>` 태그로 올린다 (PR은 빌드 확인만) |
+
+- **테스트를 통과한 커밋만 이미지가 된다** — 배포는 GHCR 이미지를 받아 실행하므로 검증되지 않은 코드가 서버에 올라가지 않는다. `sha-` 태그로 특정 커밋 버전으로 되돌릴 수 있다
+- **멀티 아키텍처** — jar · 정적 파일 빌드는 빌드 머신에서 한 번만 하고(`--platform=$BUILDPLATFORM`), arm64는 실행 이미지만 조립한다. 에뮬레이션으로 컴파일하지 않아 arm64를 추가해도 빌드 시간이 크게 늘지 않는다
+- **캐시** — Gradle · npm 의존성, Docker 레이어(GitHub Actions 캐시)
+- **권한 최소화** — 워크플로 기본 권한은 `contents: read`, 이미지를 올리는 작업만 `packages: write`. 레지스트리 인증은 실행마다 발급되는 `GITHUB_TOKEN`을 사용 (별도 비밀값 없음)
+- 같은 브랜치에 새 커밋이 오면 진행 중인 이전 실행은 취소한다
 
 ## 14. Deployment
 

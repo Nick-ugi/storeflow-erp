@@ -4,7 +4,8 @@
 
 # ---- 1단계: 실행 jar 빌드 ----
 # 테스트는 여기서 돌리지 않는다. Testcontainers가 Docker를 필요로 하므로 CI에서 따로 실행한다.
-FROM eclipse-temurin:21-jdk-alpine AS build
+# jar는 CPU 아키텍처와 무관하므로 빌드 머신 아키텍처에서 한 번만 만든다. (arm64 이미지도 에뮬레이션으로 컴파일하지 않음)
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /workspace
 
 COPY backend/gradlew backend/settings.gradle backend/build.gradle ./

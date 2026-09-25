@@ -1,0 +1,131 @@
+# StoreFlow ERP CI
+# - PR · main push: 백엔드 테스트, 프론트엔드 검사 · 빌드, Docker 이미지 빌드
+# - main push일 때만 이미지를 GHCR(ghcr.io)에 올린다. (PR은 빌드 확인만)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 같은 브랜치 · PR에 새 커밋이 오면 진행 중인 이전 실행을 취소한다.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 기본 권한은 읽기만. 이미지를 올리는 docker 작업만 packages: write를 받는다.
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Gradle Wrapper 검증 + 의존성 캐시 (오픈소스 basic 캐시)
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: 테스트 (Testcontainers — 실제 PostgreSQL 17 컨테이너)
+        run: ./gradlew test
+
+      - name: 테스트 리포트 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-report
+          path: backend/build/reports/tests/test
+          retention-days: 7
+
+  frontend:
+    name: Frontend (format · lint · build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: 포맷 검사 (Prettier)
+        run: npm run format:check
+
+      - name: Lint (oxlint — 경고도 실패로 처리)
+        run: npm run lint -- --deny-warnings
+
+      - name: 타입 체크 + 빌드
+        run: npm run build
+
+  docker:
+    name: Docker (${{ matrix.image }})
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image: [backend, frontend]
+    env:
+      PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # 실행 단계(addgroup 등)만 arm64 에뮬레이션으로 실행한다. 빌드 단계는 Dockerfile에서 BUILDPLATFORM으로 실행
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - name: GHCR 로그인
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # GHCR 이미지 이름은 소문자만 허용한다. (Nick-ugi → nick-ugi)
+      - name: 이미지 이름
+        run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/storeflow-${{ matrix.image }}" >> "$GITHUB_ENV"
+
+      # 태그: sha-<커밋 7자리> (배포 · 롤백용), main이면 latest
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/${{ matrix.image }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
