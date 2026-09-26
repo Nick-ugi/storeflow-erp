@@ -1,3 +1,11 @@
+spring:
+  config:
+    # 로컬 전용 값(DB 접속 정보 등)은 저장소 루트의 .env에 둔다. (Git 제외, 예시: .env.example)
+    # bootRun은 backend/에서, IDE는 저장소 루트에서 실행될 수 있어 두 위치를 모두 찾는다. 파일이 없으면 기본값 사용
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
+
 storeflow:
   jwt:
     # 로컬 개발 · 테스트 전용 키

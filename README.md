@@ -193,7 +193,7 @@ npm run dev
 
 브라우저에서 http://localhost:5173 접속 → 아래 초기 ADMIN 계정으로 로그인하면 Dashboard가 열린다.
 ADMIN으로 매장 · 상품 · 공급처 · 사용자(MANAGER · USER)를 등록하면 역할별 화면을 확인할 수 있다.
-DB 접속 정보는 [.env.example](.env.example) 참고.
+DB 접속 정보를 바꾸려면 [.env.example](.env.example)을 `.env`로 복사해 수정한다. `.env`는 Git에 올라가지 않으며, 백엔드(local 프로필)와 개발용 docker compose가 함께 읽는다.
 
 - **초기 ADMIN 계정**: 아이디 `admin` / 비밀번호 `admin1234` (첫 실행 시 Flyway가 생성, 로그인 후 변경 권장)
 - **테스트**: `cd backend && ./gradlew test` — Testcontainers가 테스트용 PostgreSQL 컨테이너를 따로 띄우므로 Docker가 실행 중이어야 한다.
