@@ -24,7 +24,7 @@
 
 ## 5. System Architecture
 
-> 작성 예정
+> 요약은 작성 예정 — 코드 실행 순서(기동, 요청 처리, 인증, 재고 트랜잭션 · 잠금)는 [구동 흐름 (개발자용)](docs/architecture/01-runtime-flow.md) 참고
 
 ## 6. Tech Stack
 

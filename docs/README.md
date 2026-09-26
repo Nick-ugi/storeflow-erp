@@ -13,4 +13,5 @@
 | ⑥ | API 명세 — [공통 규칙 · 오류 코드](api/01-api-common.md) / [API 목록](api/02-api-list.md) / 상세: [판매 · 재고](api/03-api-sales-stock.md), [발주](api/04-api-purchase.md), [기준정보](api/05-api-master.md), [인증 · 시스템 관리 · Dashboard](api/06-api-system.md) | `api/` | **확정 v1.0** (공통 규칙 v1.1) |
 | ⑦ | [상태값 / 코드 정의서](erd/03-code-definition.md) | `erd/` | **확정 v1.0** |
 | - | 업무 Flow Chart (판매, 판매 취소, 발주 → 입고, 재고 조정) | `flow/` | 작성 예정 |
-| - | 시스템 아키텍처, Legacy → Modern 비교 | `architecture/` | 작성 예정 |
+| - | [구동 흐름 (개발자용)](architecture/01-runtime-flow.md) — 전체 구성, 기동, 요청 처리, 오류, 인증, 재고 트랜잭션 · 잠금, 빌드 · 배포 | `architecture/` | **작성** |
+| - | Legacy → Modern 비교 | `architecture/` | 작성 예정 |
